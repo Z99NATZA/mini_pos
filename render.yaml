@@ -1,5 +1,7 @@
 # render.yaml — Render infrastructure-as-code
 # Docs: https://render.com/docs/yaml-spec
+#
+# Database: Supabase PostgreSQL (Session Pooler — IPv4 compatible)
 
 services:
   - type: web
@@ -16,8 +18,7 @@ services:
       - key: APP_DEBUG
         value: "false"
 
-      # Full public URL of this backend service (set after first deploy)
-      # e.g. https://mini-pos-backend.onrender.com
+      # Set after first deploy — e.g. https://mini-pos-backend.onrender.com
       - key: APP_URL
         sync: false
 
@@ -30,33 +31,19 @@ services:
       - key: MAX_UPLOAD_SIZE
         value: "12288"
 
-      # Database connection — auto-filled from the database block below
+      # --- Supabase Session Pooler (IPv4 compatible) ---
       - key: DB_HOST
-        fromDatabase:
-          name: mini-pos-db
-          property: host
+        value: aws-1-ap-northeast-1.pooler.supabase.com
 
       - key: DB_PORT
-        fromDatabase:
-          name: mini-pos-db
-          property: port
+        value: "5432"
 
       - key: DB_NAME
-        fromDatabase:
-          name: mini-pos-db
-          property: database
+        value: postgres
 
       - key: DB_USER
-        fromDatabase:
-          name: mini-pos-db
-          property: user
+        value: postgres.fytwcqxgmejgwvzshdyb
 
+      # Set this manually in the Render dashboard (your Supabase DB password)
       - key: DB_PASSWORD
-        fromDatabase:
-          name: mini-pos-db
-          property: password
-
-databases:
-  - name: mini-pos-db
-    databaseName: mini_pos
-    user: mini_pos
+        sync: false
