@@ -36,12 +36,12 @@ async function handleLogin() {
 <template>
   <!-- Card -->
   <div
-    class="w-full max-w-sm bg-white/80 backdrop-blur-md rounded-3xl shadow-2xl shadow-sky-200/60 px-8 py-10"
+    class="w-full max-w-sm bg-(--color-surface) rounded-3xl shadow-lg border border-(--color-border) px-8 py-10"
   >
     <!-- Logo -->
     <div class="flex flex-col items-center mb-7">
       <div
-        class="w-14 h-14 bg-gray-900 rounded-2xl flex items-center justify-center shadow-lg mb-4"
+        class="w-14 h-14 bg-(--color-primary) rounded-2xl flex items-center justify-center shadow-md mb-4"
       >
         <svg
           class="w-7 h-7 text-white"
@@ -90,7 +90,7 @@ async function handleLogin() {
           required
           placeholder="Username"
           autocomplete="username"
-          class="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-300 transition-all"
+          class="w-full pl-10 pr-4 py-3 bg-(--color-bg) border border-(--color-border) rounded-xl text-sm text-(--color-text) placeholder:text-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-all"
         />
       </div>
 
@@ -119,12 +119,12 @@ async function handleLogin() {
           required
           placeholder="Password"
           autocomplete="current-password"
-          class="w-full pl-10 pr-10 py-3 bg-gray-100 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-300 transition-all"
+          class="w-full pl-10 pr-10 py-3 bg-(--color-bg) border border-(--color-border) rounded-xl text-sm text-(--color-text) placeholder:text-(--color-text-muted) focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-all"
         />
         <button
           type="button"
           @click="showPassword = !showPassword"
-          class="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+          class="absolute right-3.5 top-1/2 -translate-y-1/2 text-(--color-text-muted) hover:text-(--color-text) transition-colors"
           :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'"
         >
           <svg
@@ -168,7 +168,7 @@ async function handleLogin() {
       <button
         type="submit"
         :disabled="loading"
-        class="w-full py-3 mt-1 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        class="w-full py-3 mt-1 bg-(--color-primary) hover:bg-(--color-primary-hover) text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         <svg
           v-if="loading"
