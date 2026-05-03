@@ -11,31 +11,27 @@ use App\Modules\Product\Application\UseCase\UpdateProductUseCase;
 use App\Modules\Product\Infrastructure\Repository\ProductRepository;
 use App\Shared\Helpers\ImageUrl;
 use App\Shared\Helpers\Sanitizer;
+use App\Shared\Helpers\SupabaseStorage;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
-/**
- * Handles HTTP endpoints for the Product module.
- */
 class ProductController
 {
-    private const UPLOAD_DIR =
+    private const LOCAL_UPLOAD_DIR =
         __DIR__ . "/../../../../../../public/uploads/products/";
+    private const BUCKET = "mini-pos-images";
+    private const FOLDER = "products";
     private const ALLOWED_MIMES = [
         "image/jpeg",
         "image/png",
         "image/gif",
         "image/webp",
     ];
-    private const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
+    private const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 
-    /**
-     * GET /api/products?page=1&per_page=10&search=
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function index(
         Request $request,
         array $authUser = [],
@@ -56,7 +52,6 @@ class ProductController
             $pdo = Connection::getInstance();
             $repository = new ProductRepository($pdo);
             $result = $repository->findAll($page, $perPage, $search);
-
             $items = array_map([$this, "withImageUrl"], $result["items"]);
 
             return Response::paginate(
@@ -71,12 +66,7 @@ class ProductController
         }
     }
 
-    /**
-     * POST /api/products
-     * Accepts multipart/form-data with an optional image file.
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function store(
         Request $request,
         array $authUser = [],
@@ -89,13 +79,12 @@ class ProductController
                 (string) $request->request->get("price", "0"),
             );
 
-            $imageName = $this->handleUpload();
+            $imageValue = $this->handleUpload();
 
             $pdo = Connection::getInstance();
             $repository = new ProductRepository($pdo);
             $useCase = new CreateProductUseCase($repository);
-
-            $product = $useCase->execute($name, $price, $imageName);
+            $product = $useCase->execute($name, $price, $imageValue);
 
             return Response::success(
                 "Product created successfully.",
@@ -110,12 +99,7 @@ class ProductController
         }
     }
 
-    /**
-     * PUT /api/products/{id}
-     * Accepts multipart/form-data or JSON body with an optional image file.
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function update(
         Request $request,
         array $authUser = [],
@@ -126,7 +110,6 @@ class ProductController
                 return Response::error("Invalid product ID.", 422);
             }
 
-            // Support both JSON body and multipart form data.
             $contentType = $request->headers->get("Content-Type", "");
 
             if (str_contains($contentType, "application/json")) {
@@ -142,13 +125,12 @@ class ProductController
                 );
             }
 
-            $imageName = $this->handleUpload();
+            $imageValue = $this->handleUpload();
 
             $pdo = Connection::getInstance();
             $repository = new ProductRepository($pdo);
             $useCase = new UpdateProductUseCase($repository);
-
-            $product = $useCase->execute($id, $name, $price, $imageName);
+            $product = $useCase->execute($id, $name, $price, $imageValue);
 
             return Response::success(
                 "Product updated successfully.",
@@ -162,11 +144,7 @@ class ProductController
         }
     }
 
-    /**
-     * DELETE /api/products/{id}
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function destroy(
         Request $request,
         array $authUser = [],
@@ -179,21 +157,14 @@ class ProductController
 
             $pdo = Connection::getInstance();
             $repository = new ProductRepository($pdo);
-
             $product = $repository->findById($id);
+
             if ($product === null) {
                 return Response::error("Product not found.", 404);
             }
 
             $repository->delete($id);
-
-            // Remove the associated image file if one exists.
-            if (!empty($product["image"])) {
-                $filePath = self::UPLOAD_DIR . $product["image"];
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                }
-            }
+            $this->deleteImage($product["image"] ?? null);
 
             return Response::success("Product deleted successfully.");
         } catch (Throwable $e) {
@@ -202,12 +173,7 @@ class ProductController
         }
     }
 
-    /**
-     * Transforms the raw `image` filename in a product array into a full relative URL.
-     *
-     * @param array<string, mixed> $product
-     * @return array<string, mixed>
-     */
+    /** @param array<string, mixed> $product */
     private function withImageUrl(array $product): array
     {
         $product["image"] = ImageUrl::product($product["image"] ?? null);
@@ -215,10 +181,9 @@ class ProductController
     }
 
     /**
-     * Processes the uploaded 'image' file from $_FILES.
-     * Returns the saved filename on success, or null if no file was uploaded.
-     *
-     * @throws InvalidArgumentException when the upload is invalid.
+     * Processes the uploaded 'image' file.
+     * Uses Supabase Storage when configured, local filesystem otherwise.
+     * Returns a full URL (Supabase) or a bare filename (local).
      */
     private function handleUpload(): ?string
     {
@@ -243,7 +208,6 @@ class ProductController
             );
         }
 
-        // Use finfo for reliable MIME detection (not the client-supplied type).
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file["tmp_name"]);
 
@@ -251,10 +215,6 @@ class ProductController
             throw new InvalidArgumentException(
                 "Only JPEG, PNG, GIF, and WebP images are allowed.",
             );
-        }
-
-        if (!is_dir(self::UPLOAD_DIR)) {
-            mkdir(self::UPLOAD_DIR, 0755, true);
         }
 
         $extension = match ($mimeType) {
@@ -266,14 +226,66 @@ class ProductController
         };
 
         $filename = uniqid("product_", true) . "." . $extension;
-        $destination = self::UPLOAD_DIR . $filename;
 
-        if (!move_uploaded_file($file["tmp_name"], $destination)) {
+        // — Supabase Storage (production) —
+        if (SupabaseStorage::isConfigured()) {
+            $path = self::FOLDER . "/" . $filename;
+            return SupabaseStorage::upload(
+                self::BUCKET,
+                $path,
+                $file["tmp_name"],
+                $mimeType,
+            );
+        }
+
+        // — Local filesystem (development) —
+        if (!is_dir(self::LOCAL_UPLOAD_DIR)) {
+            mkdir(self::LOCAL_UPLOAD_DIR, 0755, true);
+        }
+
+        if (
+            !move_uploaded_file(
+                $file["tmp_name"],
+                self::LOCAL_UPLOAD_DIR . $filename,
+            )
+        ) {
             throw new InvalidArgumentException(
                 "Failed to save the uploaded image.",
             );
         }
 
         return $filename;
+    }
+
+    /**
+     * Deletes the image from whichever backend stored it.
+     */
+    private function deleteImage(?string $value): void
+    {
+        if (empty($value)) {
+            return;
+        }
+
+        if (
+            str_starts_with($value, "http") &&
+            SupabaseStorage::isConfigured()
+        ) {
+            // Extract "products/filename.ext" from the full Supabase URL.
+            $prefix = "/storage/v1/object/public/" . self::BUCKET . "/";
+            $parsed = parse_url($value, PHP_URL_PATH) ?? "";
+            if (str_starts_with($parsed, $prefix)) {
+                SupabaseStorage::delete(
+                    self::BUCKET,
+                    substr($parsed, strlen($prefix)),
+                );
+            }
+            return;
+        }
+
+        // Local file.
+        $filePath = self::LOCAL_UPLOAD_DIR . $value;
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
     }
 }

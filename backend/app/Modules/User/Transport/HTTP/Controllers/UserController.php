@@ -11,31 +11,27 @@ use App\Modules\User\Application\UseCase\UpdateUserUseCase;
 use App\Modules\User\Infrastructure\Repository\UserRepository;
 use App\Shared\Helpers\ImageUrl;
 use App\Shared\Helpers\Sanitizer;
+use App\Shared\Helpers\SupabaseStorage;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Throwable;
 
-/**
- * Handles HTTP endpoints for the User module.
- */
 class UserController
 {
-    private const UPLOAD_DIR =
+    private const LOCAL_UPLOAD_DIR =
         __DIR__ . "/../../../../../../public/uploads/users/";
+    private const BUCKET = "mini-pos-images";
+    private const FOLDER = "users";
     private const ALLOWED_MIMES = [
         "image/jpeg",
         "image/png",
         "image/gif",
         "image/webp",
     ];
-    private const MAX_UPLOAD_BYTES = 12 * 1024 * 1024; // 12 MB
+    private const MAX_UPLOAD_BYTES = 12 * 1024 * 1024;
 
-    /**
-     * GET /api/users?page=1&per_page=10
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function index(
         Request $request,
         array $authUser = [],
@@ -53,7 +49,6 @@ class UserController
             $pdo = Connection::getInstance();
             $repository = new UserRepository($pdo);
             $result = $repository->findAll($page, $perPage);
-
             $items = array_map([$this, "withImageUrl"], $result["items"]);
 
             return Response::paginate(
@@ -68,12 +63,7 @@ class UserController
         }
     }
 
-    /**
-     * POST /api/users
-     * Body: { username, name, password, role } with optional image file.
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function store(
         Request $request,
         array $authUser = [],
@@ -90,7 +80,6 @@ class UserController
                 (string) $request->request->get("role", "staff"),
             );
 
-            // Fall back to JSON body if form data was empty.
             if (empty($username)) {
                 $body = json_decode($request->getContent(), true) ?? [];
                 $username = Sanitizer::string(
@@ -101,18 +90,17 @@ class UserController
                 $role = Sanitizer::string((string) ($body["role"] ?? "staff"));
             }
 
-            $imageName = $this->handleUpload();
+            $imageValue = $this->handleUpload();
 
             $pdo = Connection::getInstance();
             $repository = new UserRepository($pdo);
             $useCase = new CreateUserUseCase($repository);
-
             $user = $useCase->execute(
                 $username,
                 $name,
                 $password,
                 $role,
-                $imageName,
+                $imageValue,
             );
 
             return Response::success(
@@ -128,12 +116,7 @@ class UserController
         }
     }
 
-    /**
-     * PUT /api/users/{id}
-     * Accepts multipart/form-data or JSON body.
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function update(
         Request $request,
         array $authUser = [],
@@ -167,19 +150,18 @@ class UserController
                 );
             }
 
-            $imageName = $this->handleUpload();
+            $imageValue = $this->handleUpload();
 
             $pdo = Connection::getInstance();
             $repository = new UserRepository($pdo);
             $useCase = new UpdateUserUseCase($repository);
-
             $user = $useCase->execute(
                 $id,
                 $username,
                 $name,
                 $password,
                 $role,
-                $imageName,
+                $imageValue,
             );
 
             return Response::success(
@@ -194,12 +176,7 @@ class UserController
         }
     }
 
-    /**
-     * DELETE /api/users/{id}
-     * Cannot delete user with ID 1 (initial admin), or if it would leave no admin users.
-     *
-     * @param array<string, mixed> $authUser
-     */
+    /** @param array<string, mixed> $authUser */
     public function destroy(
         Request $request,
         array $authUser = [],
@@ -210,7 +187,6 @@ class UserController
                 return Response::error("Invalid user ID.", 422);
             }
 
-            // Protect the original admin account.
             if ($id === 1) {
                 return Response::error(
                     "The default admin user cannot be deleted.",
@@ -220,13 +196,12 @@ class UserController
 
             $pdo = Connection::getInstance();
             $repository = new UserRepository($pdo);
-
             $user = $repository->findById($id);
+
             if ($user === null) {
                 return Response::error("User not found.", 404);
             }
 
-            // Prevent deleting the last admin.
             if ($user["role"] === "admin" && $repository->countAdmins() <= 1) {
                 return Response::error(
                     "Cannot delete the last admin user.",
@@ -235,14 +210,7 @@ class UserController
             }
 
             $repository->delete($id);
-
-            // Clean up the associated avatar file if present.
-            if (!empty($user["image"])) {
-                $filePath = self::UPLOAD_DIR . $user["image"];
-                if (file_exists($filePath)) {
-                    unlink($filePath);
-                }
-            }
+            $this->deleteImage($user["image"] ?? null);
 
             return Response::success("User deleted successfully.");
         } catch (Throwable $e) {
@@ -251,24 +219,13 @@ class UserController
         }
     }
 
-    /**
-     * Transforms the raw `image` filename in a user array into a full relative URL.
-     *
-     * @param array<string, mixed> $user
-     * @return array<string, mixed>
-     */
+    /** @param array<string, mixed> $user */
     private function withImageUrl(array $user): array
     {
         $user["image"] = ImageUrl::user($user["image"] ?? null);
         return $user;
     }
 
-    /**
-     * Processes the uploaded 'image' file from $_FILES.
-     * Returns the saved filename on success, or null if no file was uploaded.
-     *
-     * @throws InvalidArgumentException when the upload is invalid.
-     */
     private function handleUpload(): ?string
     {
         if (
@@ -301,10 +258,6 @@ class UserController
             );
         }
 
-        if (!is_dir(self::UPLOAD_DIR)) {
-            mkdir(self::UPLOAD_DIR, 0755, true);
-        }
-
         $extension = match ($mimeType) {
             "image/jpeg" => "jpg",
             "image/png" => "png",
@@ -314,14 +267,59 @@ class UserController
         };
 
         $filename = uniqid("user_", true) . "." . $extension;
-        $destination = self::UPLOAD_DIR . $filename;
 
-        if (!move_uploaded_file($file["tmp_name"], $destination)) {
+        if (SupabaseStorage::isConfigured()) {
+            $path = self::FOLDER . "/" . $filename;
+            return SupabaseStorage::upload(
+                self::BUCKET,
+                $path,
+                $file["tmp_name"],
+                $mimeType,
+            );
+        }
+
+        if (!is_dir(self::LOCAL_UPLOAD_DIR)) {
+            mkdir(self::LOCAL_UPLOAD_DIR, 0755, true);
+        }
+
+        if (
+            !move_uploaded_file(
+                $file["tmp_name"],
+                self::LOCAL_UPLOAD_DIR . $filename,
+            )
+        ) {
             throw new InvalidArgumentException(
                 "Failed to save the uploaded image.",
             );
         }
 
         return $filename;
+    }
+
+    private function deleteImage(?string $value): void
+    {
+        if (empty($value)) {
+            return;
+        }
+
+        if (
+            str_starts_with($value, "http") &&
+            SupabaseStorage::isConfigured()
+        ) {
+            $prefix = "/storage/v1/object/public/" . self::BUCKET . "/";
+            $parsed = parse_url($value, PHP_URL_PATH) ?? "";
+            if (str_starts_with($parsed, $prefix)) {
+                SupabaseStorage::delete(
+                    self::BUCKET,
+                    substr($parsed, strlen($prefix)),
+                );
+            }
+            return;
+        }
+
+        $filePath = self::LOCAL_UPLOAD_DIR . $value;
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
     }
 }

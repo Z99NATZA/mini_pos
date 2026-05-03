@@ -31,6 +31,12 @@ services:
       - key: MAX_UPLOAD_SIZE
         value: "12288"
 
+      - key: SUPABASE_URL
+        value: https://fytwcqxgmejgwvzshdyb.supabase.co
+
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+
       # --- Supabase Session Pooler (IPv4 compatible) ---
       - key: DB_HOST
         value: aws-1-ap-northeast-1.pooler.supabase.com
