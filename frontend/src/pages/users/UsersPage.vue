@@ -288,7 +288,7 @@ onMounted(fetchUsers)
               required
               placeholder="username"
               autocomplete="off"
-              class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+              class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
             />
           </div>
           <div>
@@ -300,7 +300,7 @@ onMounted(fetchUsers)
               type="text"
               required
               placeholder="ชื่อ นามสกุล"
-              class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+              class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
             />
           </div>
         </div>
@@ -322,7 +322,7 @@ onMounted(fetchUsers)
               :class="[
                 'w-full px-3 py-2 pr-10 border border-(--color-border) rounded-(--radius-md) text-(--color-text) text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors',
-                !editing ? 'bg-red-50' : 'bg-(--color-surface)'
+                !editing ? 'hidden-bg-red-50' : 'bg-(--color-surface)'
               ]"
             />
             <button
@@ -348,7 +348,7 @@ onMounted(fetchUsers)
           </label>
           <select
             v-model="form.role"
-            class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+            class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
           >
             <option value="admin">ผู้ดูแลระบบ (Admin)</option>
             <option value="staff">พนักงาน (Staff)</option>

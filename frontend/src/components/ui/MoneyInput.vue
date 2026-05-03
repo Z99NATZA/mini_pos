@@ -63,7 +63,7 @@ function onInput(e: Event) {
       'w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) text-(--color-text)',
       'focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary)',
       'transition-colors text-sm',
-      required ? 'bg-red-50' : 'bg-(--color-surface)',
+      required ? 'hidden-bg-red-50' : 'bg-(--color-surface)',
       props.class
     ]"
     @focus="onFocus"

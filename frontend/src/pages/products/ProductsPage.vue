@@ -262,7 +262,7 @@ onMounted(fetchProducts)
             type="text"
             required
             placeholder="กรอกชื่อสินค้า"
-            class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+            class="w-full px-3 py-2 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
           />
         </div>
 
@@ -299,7 +299,7 @@ onMounted(fetchProducts)
               'file:rounded-(--radius-sm) file:border-0 file:text-xs file:font-medium',
               'file:bg-(--color-primary-light) file:text-(--color-primary)',
               'hover:file:bg-(--color-primary) hover:file:text-white file:transition-colors',
-              !editing ? 'p-2 bg-red-50 border border-dashed border-red-200 rounded-(--radius-md)' : ''
+              !editing ? 'p-2 hidden-bg-red-50 border border-dashed border-red-200 rounded-(--radius-md)' : ''
             ]"
           />
         </div>

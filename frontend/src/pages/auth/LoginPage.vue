@@ -62,7 +62,7 @@ async function handleLogin() {
             required
             placeholder="กรอกชื่อผู้ใช้"
             autocomplete="username"
-            class="w-full px-3 py-2.5 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+            class="w-full px-3 py-2.5 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
           />
         </div>
 
@@ -78,7 +78,7 @@ async function handleLogin() {
               required
               placeholder="กรอกรหัสผ่าน"
               autocomplete="current-password"
-              class="w-full px-3 py-2.5 pr-10 border border-(--color-border) rounded-(--radius-md) bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
+              class="w-full px-3 py-2.5 pr-10 border border-(--color-border) rounded-(--radius-md) hidden-bg-red-50 text-(--color-text) text-sm focus:outline-none focus:ring-2 focus:ring-(--color-primary)/30 focus:border-(--color-primary) transition-colors"
             />
             <button
               type="button"
