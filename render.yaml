@@ -1,0 +1,63 @@
+# render.yaml — Render infrastructure-as-code
+# Docs: https://render.com/docs/yaml-spec
+
+services:
+  - type: web
+    name: mini-pos-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    port: 8080
+
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      - key: APP_DEBUG
+        value: "false"
+
+      # Full public URL of this backend service (set after first deploy)
+      # e.g. https://mini-pos-backend.onrender.com
+      - key: APP_URL
+        sync: false
+
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: UPLOAD_PATH
+        value: uploads
+
+      - key: MAX_UPLOAD_SIZE
+        value: "12288"
+
+      # Database connection — auto-filled from the database block below
+      - key: DB_HOST
+        fromDatabase:
+          name: mini-pos-db
+          property: host
+
+      - key: DB_PORT
+        fromDatabase:
+          name: mini-pos-db
+          property: port
+
+      - key: DB_NAME
+        fromDatabase:
+          name: mini-pos-db
+          property: database
+
+      - key: DB_USER
+        fromDatabase:
+          name: mini-pos-db
+          property: user
+
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: mini-pos-db
+          property: password
+
+databases:
+  - name: mini-pos-db
+    databaseName: mini_pos
+    user: mini_pos
