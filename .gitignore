@@ -1,0 +1,28 @@
+# Environment files
+.env
+*.local
+
+# Backend
+backend/vendor/
+backend/storage/init.lock
+backend/public/uploads/products/*
+backend/public/uploads/users/*
+!backend/public/uploads/products/.gitkeep
+!backend/public/uploads/users/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.override.yml

@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mini_pos_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: mini_pos
+      POSTGRES_USER: mini_pos
+      POSTGRES_PASSWORD: mini_pos_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mini_pos -d mini_pos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mini_pos_backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/var/www/html
+      - /var/www/html/vendor
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      JWT_SECRET: docker-dev-secret-change-in-production
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: mini_pos
+      DB_USER: mini_pos
+      DB_PASSWORD: mini_pos_password
+      UPLOAD_PATH: uploads
+      UPLOAD_URL: /uploads
+      MAX_UPLOAD_SIZE: "12288"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mini_pos_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+    name: mini_pos_postgres_data
