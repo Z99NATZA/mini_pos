@@ -19,8 +19,8 @@ use Throwable;
  */
 class SchemaInit
 {
-    private const LOCK_FILE   = __DIR__ . '/../../../../storage/schema.lock';
-    private const SCHEMA_FILE = __DIR__ . '/../../../../database/schema.sql';
+    private const LOCK_FILE = __DIR__ . "/../../../storage/schema.lock";
+    private const SCHEMA_FILE = __DIR__ . "/../../../database/schema.sql";
 
     /**
      * Runs the schema SQL against the given PDO connection unless the lock
@@ -36,7 +36,7 @@ class SchemaInit
             $sql = file_get_contents(self::SCHEMA_FILE);
 
             if ($sql === false) {
-                error_log('SchemaInit::ensure — could not read schema file.');
+                error_log("SchemaInit::ensure — could not read schema file.");
                 return;
             }
 
@@ -49,9 +49,9 @@ class SchemaInit
                 mkdir($lockDir, 0755, true);
             }
 
-            file_put_contents(self::LOCK_FILE, date('Y-m-d H:i:s'));
+            file_put_contents(self::LOCK_FILE, date("Y-m-d H:i:s"));
         } catch (Throwable $e) {
-            error_log('SchemaInit::ensure failed: ' . $e->getMessage());
+            error_log("SchemaInit::ensure failed: " . $e->getMessage());
         }
     }
 }
