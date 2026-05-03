@@ -52,11 +52,11 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null;
 // Computed total for current customization
 const itemTotal = computed(() => {
   if (!selectedProduct.value) return 0;
-  const base = selectedProduct.value.price;
-  const sizePrice = selectedSize.value?.price || 0;
-  const typePrice = selectedType.value?.price || 0;
+  const base = Number(selectedProduct.value.price) || 0;
+  const sizePrice = Number(selectedSize.value?.price) || 0;
+  const typePrice = Number(selectedType.value?.price) || 0;
   const toppingsPrice = selectedToppings.value.reduce(
-    (sum, t) => sum + t.price,
+    (sum, t) => sum + (Number(t.price) || 0),
     0,
   );
   return (base + sizePrice + typePrice + toppingsPrice) * quantity.value;

@@ -18,47 +18,47 @@ class ProductRepository
      *
      * @return array{items: array<int, array<string, mixed>>, total: int}
      */
-    public function findAll(int $page, int $perPage, string $search = ''): array
+    public function findAll(int $page, int $perPage, string $search = ""): array
     {
         $offset = ($page - 1) * $perPage;
 
-        if ($search !== '') {
-            $like = '%' . $search . '%';
+        if ($search !== "") {
+            $like = "%" . $search . "%";
 
             $countStmt = $this->pdo->prepare(
-                'SELECT COUNT(*) FROM products WHERE name ILIKE :search'
+                "SELECT COUNT(*) FROM products WHERE name ILIKE :search",
             );
-            $countStmt->execute([':search' => $like]);
+            $countStmt->execute([":search" => $like]);
 
             $stmt = $this->pdo->prepare(
                 'SELECT id, name, price, image, created_at
                  FROM products
                  WHERE name ILIKE :search
                  ORDER BY created_at DESC
-                 LIMIT :limit OFFSET :offset'
+                 LIMIT :limit OFFSET :offset',
             );
-            $stmt->bindValue(':search', $like);
+            $stmt->bindValue(":search", $like);
         } else {
-            $countStmt = $this->pdo->prepare('SELECT COUNT(*) FROM products');
+            $countStmt = $this->pdo->prepare("SELECT COUNT(*) FROM products");
             $countStmt->execute();
 
             $stmt = $this->pdo->prepare(
                 'SELECT id, name, price, image, created_at
                  FROM products
                  ORDER BY created_at DESC
-                 LIMIT :limit OFFSET :offset'
+                 LIMIT :limit OFFSET :offset',
             );
         }
 
         $total = (int) $countStmt->fetchColumn();
 
-        $stmt->bindValue(':limit',  $perPage, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
+        $stmt->bindValue(":limit", $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(":offset", $offset, PDO::PARAM_INT);
         $stmt->execute();
 
         return [
-            'items' => $stmt->fetchAll(),
-            'total' => $total,
+            "items" => array_map([$this, "normalizeRow"], $stmt->fetchAll()),
+            "total" => $total,
         ];
     }
 
@@ -70,12 +70,12 @@ class ProductRepository
     public function findById(int $id): ?array
     {
         $stmt = $this->pdo->prepare(
-            'SELECT id, name, price, image, created_at FROM products WHERE id = :id LIMIT 1'
+            "SELECT id, name, price, image, created_at FROM products WHERE id = :id LIMIT 1",
         );
-        $stmt->execute([':id' => $id]);
+        $stmt->execute([":id" => $id]);
         $row = $stmt->fetch();
 
-        return $row !== false ? $row : null;
+        return $row !== false ? $this->normalizeRow($row) : null;
     }
 
     /**
@@ -87,14 +87,14 @@ class ProductRepository
     {
         if ($excludeId !== null) {
             $stmt = $this->pdo->prepare(
-                'SELECT id FROM products WHERE name = :name AND id != :exclude_id LIMIT 1'
+                "SELECT id FROM products WHERE name = :name AND id != :exclude_id LIMIT 1",
             );
-            $stmt->execute([':name' => $name, ':exclude_id' => $excludeId]);
+            $stmt->execute([":name" => $name, ":exclude_id" => $excludeId]);
         } else {
             $stmt = $this->pdo->prepare(
-                'SELECT id FROM products WHERE name = :name LIMIT 1'
+                "SELECT id FROM products WHERE name = :name LIMIT 1",
             );
-            $stmt->execute([':name' => $name]);
+            $stmt->execute([":name" => $name]);
         }
 
         $row = $stmt->fetch();
@@ -112,16 +112,16 @@ class ProductRepository
         $stmt = $this->pdo->prepare(
             'INSERT INTO products (name, price, image)
              VALUES (:name, :price, :image)
-             RETURNING id, name, price, image, created_at'
+             RETURNING id, name, price, image, created_at',
         );
 
         $stmt->execute([
-            ':name'  => $data['name'],
-            ':price' => $data['price'],
-            ':image' => $data['image'] ?? null,
+            ":name" => $data["name"],
+            ":price" => $data["price"],
+            ":image" => $data["image"] ?? null,
         ]);
 
-        return $stmt->fetch();
+        return $this->normalizeRow($stmt->fetch());
     }
 
     /**
@@ -136,17 +136,17 @@ class ProductRepository
             'UPDATE products
              SET name = :name, price = :price, image = :image, updated_at = NOW()
              WHERE id = :id
-             RETURNING id, name, price, image, created_at'
+             RETURNING id, name, price, image, created_at',
         );
 
         $stmt->execute([
-            ':name'  => $data['name'],
-            ':price' => $data['price'],
-            ':image' => $data['image'] ?? null,
-            ':id'    => $id,
+            ":name" => $data["name"],
+            ":price" => $data["price"],
+            ":image" => $data["image"] ?? null,
+            ":id" => $id,
         ]);
 
-        return $stmt->fetch();
+        return $this->normalizeRow($stmt->fetch());
     }
 
     /**
@@ -154,7 +154,20 @@ class ProductRepository
      */
     public function delete(int $id): void
     {
-        $stmt = $this->pdo->prepare('DELETE FROM products WHERE id = :id');
-        $stmt->execute([':id' => $id]);
+        $stmt = $this->pdo->prepare("DELETE FROM products WHERE id = :id");
+        $stmt->execute([":id" => $id]);
+    }
+
+    /**
+     * Casts DECIMAL/NUMERIC columns that pdo_pgsql returns as strings back to
+     * their correct PHP scalar types so JavaScript receives proper numbers.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private function normalizeRow(array $row): array
+    {
+        $row["price"] = (float) ($row["price"] ?? 0);
+        return $row;
     }
 }

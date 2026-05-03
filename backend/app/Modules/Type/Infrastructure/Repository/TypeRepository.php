@@ -22,7 +22,7 @@ class TypeRepository
     {
         $offset = ($page - 1) * $perPage;
 
-        $countStmt = $this->pdo->prepare('SELECT COUNT(*) FROM types');
+        $countStmt = $this->pdo->prepare("SELECT COUNT(*) FROM types");
         $countStmt->execute();
         $total = (int) $countStmt->fetchColumn();
 
@@ -30,15 +30,15 @@ class TypeRepository
             'SELECT id, name, price, created_at
              FROM types
              ORDER BY created_at DESC
-             LIMIT :limit OFFSET :offset'
+             LIMIT :limit OFFSET :offset',
         );
-        $stmt->bindValue(':limit',  $perPage, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset,  PDO::PARAM_INT);
+        $stmt->bindValue(":limit", $perPage, PDO::PARAM_INT);
+        $stmt->bindValue(":offset", $offset, PDO::PARAM_INT);
         $stmt->execute();
 
         return [
-            'items' => $stmt->fetchAll(),
-            'total' => $total,
+            "items" => array_map([$this, "normalizeRow"], $stmt->fetchAll()),
+            "total" => $total,
         ];
     }
 
@@ -49,9 +49,11 @@ class TypeRepository
      */
     public function findAllNoPagination(): array
     {
-        $stmt = $this->pdo->prepare('SELECT id, name, price FROM types ORDER BY name ASC');
+        $stmt = $this->pdo->prepare(
+            "SELECT id, name, price FROM types ORDER BY name ASC",
+        );
         $stmt->execute();
-        return $stmt->fetchAll();
+        return array_map([$this, "normalizeRow"], $stmt->fetchAll());
     }
 
     /**
@@ -65,10 +67,10 @@ class TypeRepository
         $stmt = $this->pdo->prepare(
             'INSERT INTO types (name, price)
              VALUES (:name, :price)
-             RETURNING id, name, price, created_at'
+             RETURNING id, name, price, created_at',
         );
-        $stmt->execute([':name' => $data['name'], ':price' => $data['price']]);
-        return $stmt->fetch();
+        $stmt->execute([":name" => $data["name"], ":price" => $data["price"]]);
+        return $this->normalizeRow($stmt->fetch());
     }
 
     /**
@@ -83,10 +85,14 @@ class TypeRepository
             'UPDATE types
              SET name = :name, price = :price, updated_at = NOW()
              WHERE id = :id
-             RETURNING id, name, price, created_at'
+             RETURNING id, name, price, created_at',
         );
-        $stmt->execute([':name' => $data['name'], ':price' => $data['price'], ':id' => $id]);
-        return $stmt->fetch();
+        $stmt->execute([
+            ":name" => $data["name"],
+            ":price" => $data["price"],
+            ":id" => $id,
+        ]);
+        return $this->normalizeRow($stmt->fetch());
     }
 
     /**
@@ -94,7 +100,20 @@ class TypeRepository
      */
     public function delete(int $id): void
     {
-        $stmt = $this->pdo->prepare('DELETE FROM types WHERE id = :id');
-        $stmt->execute([':id' => $id]);
+        $stmt = $this->pdo->prepare("DELETE FROM types WHERE id = :id");
+        $stmt->execute([":id" => $id]);
+    }
+
+    /**
+     * Casts DECIMAL/NUMERIC columns that pdo_pgsql returns as strings back to
+     * their correct PHP scalar types so JavaScript receives proper numbers.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private function normalizeRow(array $row): array
+    {
+        $row["price"] = (float) ($row["price"] ?? 0);
+        return $row;
     }
 }
